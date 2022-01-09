@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 void main() {
   runApp(const MyApp());
@@ -48,6 +49,13 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<String> chatMessageList = [];
+  TextEditingController inputController = TextEditingController();
+
+  final channel = WebSocketChannel.connect(
+    Uri.parse('ws://localhost:4356'),
+  );
+
   @override
   Widget build(BuildContext context) {
     // This method is rerun every time setState is called, for instance as done
@@ -65,8 +73,22 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Column(
         children: <Widget>[
           Expanded(
-            child: ListView(
-              children: [Text('hello')],
+            child: StreamBuilder(
+              stream: channel.stream,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  chatMessageList.add(snapshot.data.toString());
+                }
+
+                return ListView.builder(
+                  itemCount: chatMessageList.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    return ListTile(
+                      title: Text(chatMessageList[index]),
+                    );
+                  },
+                );
+              },
             ),
           ),
           SizedBox(
@@ -80,10 +102,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 child: Row(
                   children: [
                     Expanded(
-                      child: TextField(),
+                      child: TextField(
+                        controller: inputController,
+                      ),
                     ),
                     IconButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        var message = inputController.text;
+                        if (message.isNotEmpty) {
+                          channel.sink.add(message);
+                          inputController.text = '';
+                        }
+                      },
                       icon: Icon(
                         Icons.send,
                       ),
